@@ -1,0 +1,53 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite" // "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String
+  role      Role
+  submissions Submission[]
+  reviews   Review[]
+}
+
+model Submission {
+  id          Int      @id @default(autoincrement())
+  title       String
+  filename    String
+  status      Status   @default(PENDING)
+  studentId   Int
+  reviews     Review[]
+  createdAt   DateTime @default(now())
+
+  student     User     @relation(fields: [studentId], references: [id])
+}
+
+model Review {
+  id            Int      @id @default(autoincrement())
+  submissionId  Int
+  reviewerId    Int
+  approved      Boolean
+  comments      String?
+  reviewedAt    DateTime @default(now())
+
+  submission    Submission @relation(fields: [submissionId], references: [id])
+  reviewer      User       @relation(fields: [reviewerId], references: [id])
+}
+
+enum Role {
+  STUDENT
+  REVIEWER
+  ADMIN
+}
+
+enum Status {
+  PENDING
+  APPROVED
+  REJECTED
+}
