@@ -1,0 +1,39 @@
+# Node.js dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+
+# Environment variables
+.env
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS-specific
+.DS_Store
+Thumbs.db
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Prisma generated client
+.prisma/
+
+# SQLite database (if used)
+dev.db
+dev.db-journal
+
+# Multer uploads
+uploads/
+
+# IDE/editor settings
+.vscode/
+.idea/
+*.swp
+*.swo
