@@ -37,3 +37,5 @@ uploads/
 .idea/
 *.swp
 *.swo
+
+package-lock.json
