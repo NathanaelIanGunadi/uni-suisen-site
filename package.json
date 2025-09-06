@@ -1,0 +1,9 @@
+{
+  "name": "uni-suisen-site-monorepo",
+  "private": true,
+  "scripts": {
+    "rebuild": "node scripts/rebuild.ts",
+    "rebuild:clean": "node scripts/rebuild.ts --clean-locks",
+    "rebuild:resetdb": "node scripts/rebuild.ts --reset-db"
+  }
+}
