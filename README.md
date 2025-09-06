@@ -51,7 +51,10 @@ uni-suisen-site-main/
 │ ├─ package.json
 │ ├─ tsconfig.json
 │ └─ vite.config.ts
+├─ scripts/
 └─ .gitignore
+└─ package.json
+└─ README.md
 ```
 
 **Key folders**
@@ -70,9 +73,16 @@ uni-suisen-site-main/
    applies **role-based authorization** for Reviewer/Admin routes,
    persists data via **Prisma** into a local **SQLite** DB (`dev.db`),
    and stores uploaded files in `backend/uploads/` via **Multer**.
-5. `GET /api` lists available API endpoints dynamically.
 
 ---
+
+### Setup
+
+In the project root, run:
+```bash
+npm run rebuild:clean
+```
+to intialize the project and build both front and back ends. You can then run without building them.
 
 ## Backend — Setup & Run
 
