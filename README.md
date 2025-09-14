@@ -1,301 +1,239 @@
-# Uni Suisen Site — MVP
+# Uni Suisen Site (MVP)
 
-A TypeScript-first **university submission & review system** with role-based access.
-Students upload Word files, reviewers approve/reject them, and admins oversee the process.
+A TypeScript-based **university recommendation submission and review system** with role-based access control (RBAC).  
+Roles: **Student**, **Reviewer**, **Administrator**.
 
-## Tech Stack
+- Students submit documents and track statuses.
+- Reviewers evaluate submissions (approve/reject) with comments.
+- Administrators manage users, roles, and have full visibility.
+
+---
+
+## 1) Quick Start
+
+```bash
+# From the repository root
+npm run cleanBuild:all   # installs, initializes DB, seeds test users, builds both apps
+npm run dev             # starts backend (with MailDev) and frontend together
+```
+
+- Frontend (Vite): http://localhost:5173/
+- Backend (Express): http://localhost:3000/
+- MailDev (email viewer): http://localhost:1080/ (SMTP on 1025)
+
+**Pre-seeded test users** (password: `test`):
+
+- Student: `teststudent@example.com`
+- Reviewer: `testreviewer@example.com`
+- Admin: `testadmin@example.com`
+
+> The `cleanBuild:all` script also creates `backend/.env` with sensible defaults if it is missing.
+
+---
+
+## 2) Prerequisites
+
+- Node.js **18+** (or 20+)
+- npm **9+**
+- Windows, macOS, or Linux
+
+---
+
+## 3) Repository Structure
+
+```
+uni-suisen-site/
+├─ backend/
+│ ├─ prisma/ # Prisma schema, migrations, seed.ts
+│ ├─ src/
+│ │ ├─ controllers/ # auth, submissions, reviews, admin, user preferences
+│ │ ├─ middleware/ # JWT auth, role guard
+│ │ ├─ routes/ # /api/* routers
+│ │ ├─ services/ # mailer (Nodemailer)
+│ │ ├─ types/ # Express Request augmentation
+│ │ └─ index.ts # server bootstrap
+│ └─ uploads/ # uploaded files (gitignored)
+├─ frontend/
+│ ├─ public/ # multi-page HTML (login, register, dashboard, etc.)
+│ ├─ src/
+│ │ ├─ pages/ # page scripts (TS)
+│ │ ├─ components/ # reusable UI/logic (tables, top bar)
+│ │ ├─ styles/ # Bootstrap theme overrides
+│ │ └─ main.ts # shared helpers (API base, auth headers, flash)
+│ └─ index.html # root: redirects to dashboard or login
+└─ scripts/
+└─ cleanBuildAll.js # one-command clean + install + init DB + build
+```
+
+---
+
+## 4) Technology Stack
 
 **Backend**
 
-- Node.js + **Express 5** (TypeScript)
-- **Prisma** ORM + **SQLite** (dev)
-- **JWT** authentication, **RBAC** middleware
-- **Multer** for file uploads
-- **express-list-endpoints** for auto-listing endpoints
+- Node.js, **Express** (TypeScript)
+- **Prisma** ORM with **SQLite** (development)
+- **JWT** authentication + RBAC middleware
+- **Multer** for file uploads (disk storage)
+- **Nodemailer** with **MailDev** for local email testing
 
 **Frontend**
 
-- **Vite** (vanilla) + **TypeScript**
-- **Bootstrap 5** for quick UI
+- **Vite** (vanilla) + TypeScript
+- **Bootstrap 5**
+- Global theme (primary **#57998D**, link color **#24907e**)
 
 ---
 
-## Repository Structure
+## 5) Configuration
 
-```
-uni-suisen-site-main/
-├─ backend/
-│ ├─ prisma/
-│ │ ├─ migrations/
-│ │ └─ schema.prisma
-│ ├─ src/
-│ │ ├─ controllers/
-│ │ ├─ middleware/
-│ │ ├─ routes/
-│ │ ├─ types/
-│ │ ├─ utils/
-│ │ └─ index.ts
-│ ├─ package.json
-│ └─ tsconfig.json
-├─ frontend/
-│ ├─ public/
-│ │ ├─ login.html
-│ │ ├─ register.html
-│ │ └─ vite.svg
-│ ├─ src/
-│ │ ├─ login.ts
-│ │ ├─ register.ts
-│ │ ├─ typescript.svg
-│ │ └─ vite-env.d.ts
-│ ├─ .gitignore
-│ ├─ package.json
-│ ├─ tsconfig.json
-│ └─ vite.config.ts
-└─ .gitignore
-```
-
-**Key folders**
-
-- `backend/` — Express API, Prisma schema & migrations, uploads, middleware, routes.
-- `frontend/` — Vite dev server, static HTML pages in `public/`, TS modules in `src/`.
-
----
-
-## How the pieces connect
-
-1. The **frontend** (served by Vite at `http://localhost:5173`) renders HTML pages (`public/*.html`).
-2. Each page loads a matching TS module from `frontend/src` (e.g., `register.ts`, `login.ts`).
-3. These scripts call the **backend API** at `http://localhost:3000` using `fetch()`.
-4. The **backend** authenticates users via JWT (`Authorization: Bearer <token>`),
-   applies **role-based authorization** for Reviewer/Admin routes,
-   persists data via **Prisma** into a local **SQLite** DB (`dev.db`),
-   and stores uploaded files in `backend/uploads/` via **Multer**.
-5. `GET /api` lists available API endpoints dynamically.
-
----
-
-## Backend — Setup & Run
-
-> Requirements: Node.js 18+ (or 20+), npm
-
-1. **Install deps**
-
-```bash
-cd backend
-npm install
-```
-
-2. **Environment**
-   Create `backend/.env`:
+The backend reads configuration from `backend/.env`.  
+The root script creates a default file if missing:
 
 ```env
 DATABASE_URL="file:./dev.db"
-JWT_SECRET="change_me_to_a_long_random_string"
+JWT_SECRET="your-long-random-string"
+APP_BASE_URL=http://localhost:5173
+
+# Local email testing (MailDev)
+SMTP_HOST=localhost
+SMTP_PORT=1025
+SMTP_SECURE=false
+EMAIL_FROM="Uni Recs <noreply@unirecs.local>"
 ```
 
-3. **Prisma DB**
+> For production, switch `DATABASE_URL` to Postgres/MySQL and configure a real SMTP provider.
 
-```bash
-npx prisma migrate dev --name init
-# optional: inspect data with Prisma Studio
-npx prisma studio
+---
+
+## 6) Scripts
+
+### Root
+
+```json
+{
+  "scripts": {
+    "cleanBuild:all": "node scripts/cleanBuildAll.js",
+    "dev": "concurrently -n BACKEND,FRONTEND -c auto \"npm:dev:backend\" \"npm:dev:frontend\"",
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:frontend": "npm --prefix frontend run dev"
+  }
+}
 ```
 
-4. **Dev server**
+- **cleanBuild:all** — stops dev Node processes, creates `.env` if needed, cleans, installs, applies Prisma schema, seeds users, and builds backend and frontend.
+- **dev** — runs backend dev (which also starts MailDev) and frontend dev concurrently.
 
-```bash
-npm run dev
-# Express API at http://localhost:3000
-```
+### Backend
 
-5. **Build (optional)**
+- `npm run dev` — nodemon + ts-node; starts the API and MailDev for emails.
+- `npm run build` — TypeScript compile to `dist/`.
+- `npm run start` — run compiled server (`node dist/index.js`).
+- Prisma seed (`backend/prisma/seed.ts`) ensures the three test users exist.
 
-```bash
-npm run build      # tsc → dist/
-node dist/index.js # production-like run
-```
+### Frontend
 
-### API Endpoints (as implemented)
+- `npm run dev` — Vite development server on port 5173.
+- `npm run build` — Type-check + Vite production build to `dist/`.
+- `npm run preview` — preview the production build.
 
-```
--         apiRoutes.ts  GET    /api
--        authRoutes.ts  POST   /login
--        authRoutes.ts  POST   /register
--      reviewRoutes.ts  GET    /pending
--      reviewRoutes.ts  POST   /:id/review
--  submissionRoutes.ts  POST   /
-```
+---
 
-> Also, `GET /api` returns a simple HTML page listing everything registered on the server.
+## 7) Application Flow
 
-**Auth flow**
+1. The **frontend** serves multiple HTML pages via Vite.  
+   The root (`/`) page checks for a valid token:
+   - Valid → redirect to **/dashboard.html**
+   - Invalid/none → redirect to **/login.html**
+2. Users authenticate via **JWT** (stored in `localStorage`).  
+   All API requests include `Authorization: Bearer <token>`.
+3. **Students/Admins** can create submissions (one **PENDING** at a time).
+4. **Reviewers/Admins** list and review submissions; once **APPROVED**, further reviews on that submission are blocked.
+5. **Notifications** (opt-in):
+   - Reviewers/Admins may receive an email when a new submission is created.
+   - Students may receive an email when a review decision is made.
+   - Emails are captured by MailDev in development.
 
-- `POST /api/auth/register` – body: `{ email, password, role }`.
-  - Handles duplicate email (`P2002`) and returns `400` JSON.
-- `POST /api/auth/login` – body: `{ email, password }` → returns `{ token }`.
-- **Use the token** in `Authorization: Bearer <token>` for other routes.
+---
+
+## 8) Key API Endpoints (Summary)
+
+**Auth**
+
+- `POST /api/auth/register` — registers a **STUDENT**. Body: `{ email, password, firstName, lastName }`
+- `POST /api/auth/login` — returns `{ token }`
+- `GET /api/auth/me` — returns current user `{ id, email, role, firstName, lastName }`
 
 **Submissions**
 
-- `POST /api/submissions` – multipart form-data with fields:
-  - `title` (text), `document` (file). Requires auth (student).
+- `POST /api/submissions` — create submission (multipart: `title`, `document`)
+- `GET /api/submissions/my-submissions` — current user’s submissions
+- `GET /api/submissions/all` — staff view (reviewers/admins)
+- `GET /api/submissions/:id` — submission details (with reviews)
 
-**Review (Reviewer/Admin)**
+**Reviews** (reviewers/admins)
 
-- `GET /api/reviews/pending`
-- `POST /api/reviews/:id/review` – body: `{ approved: boolean, comments?: string }`.
+- `POST /api/reviews/:id/review` — `{ approved: boolean, comments?: string }`  
+  _(No further reviews allowed after approval.)_
 
-Uploads are saved to `backend/uploads/` (served statically at `/uploads`).
+**Admin**
 
----
+- `GET /api/admin/users` — list users
+- `POST /api/admin/users` — create user (shows temp password)
+- `PATCH /api/admin/users/:id/role` — update role
+- `POST /api/admin/users/:id/reset-password` — reset to temp password
+- `DELETE /api/admin/users/:id` — delete user and related data
 
-## Frontend — Setup & Run
+**User Preferences**
 
-1. **Install deps**
+- `GET /api/user/preferences`
+- `PATCH /api/user/preferences` — `{ notifyOnNewSubmission?, notifyOnReviewDecision? }`
 
-```bash
-cd frontend
-npm install
-```
+**Utility**
 
-2. **Dev server**
-
-```bash
-npm run dev
-# Vite on http://localhost:5173
-```
-
-3. **Open pages**
-
-- `http://localhost:5173/register.html`
-- `http://localhost:5173/login.html`
-
-> These pages POST to `http://localhost:3000/api/auth/...` and display success/errors.
-
-4. **Build (optional)**
-
-```bash
-npm run build
-# Bundled assets into frontend/dist/
-npm run preview
-```
-
-### Notes about current frontend config
-
-- Your `vite.config.ts` currently references `resolve(__dirname, "frontend/public/...")`.
-  Since the file itself lives **inside `frontend/`**, change those to just `resolve(__dirname, "public/...")`,
-  and remove any input that points to files that don’t exist (e.g., `index.html`).
-
-- In `public/*.html`, prefer absolute script imports:
-
-```html
-<script type="module" src="/src/register.ts"></script>
-```
-
-(instead of `../src/...`) so paths are stable.
+- `GET /api` — HTML index of registered routes
 
 ---
 
-## Prisma Schema (excerpt)
+## 9) Frontend Pages
 
-```prisma
-generator client {
-  provider = "prisma-client-js"
-}
-
-datasource db {
-  provider = "sqlite" // "postgresql"
-  url      = env("DATABASE_URL")
-}
-
-model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
-  password  String
-  role      Role
-  submissions Submission[]
-  reviews   Review[]
-}
-
-model Submission {
-  id          Int      @id @default(autoincrement())
-  title       String
-  filename    String
-  status      Status   @default(PENDING)
-  studentId   Int
-  reviews     Review[]
-  createdAt   DateTime @default(now())
-
-  student     User     @relation(fields: [studentId], references: [id])
-}
-
-model Review {
-  id            Int      @id @default(autoincrement())
-  submissionId  Int
-  reviewerId    Int
-  approved      Boolean
-  comments      String?
-  revie
-...
-```
+- `/index.html` — root router (redirects to dashboard or login)
+- `/login.html` — authentication (email + password)
+- `/register.html` — self-registration (student role)
+- `/dashboard.html` — role-aware landing page
+  - Students: welcome + “Apply” link + recent submissions (max 5)
+  - Reviewers: submissions table
+  - Admins: both + user management
+- `/application.html` — submit application (students/admins)
+- `/submissions.html` — submissions list with search and sorting (staff)
+- `/submission.html?id=…` — individual submission details and review UI
 
 ---
 
-## Why these tools?
+## 10) Troubleshooting
 
-- **TypeScript** – safer, maintainable code with types shared across front/back.
-- **Express 5** – minimal, flexible HTTP server with huge ecosystem.
-- **Prisma** – type-safe DB access, easy migrations, great DX for SQLite dev.
-- **SQLite** (dev) – zero-setup DB for local development (swap to Postgres/MySQL in prod).
-- **JWT** – stateless auth tokens ideal for SPAs/vanilla frontends.
-- **Multer** – straightforward file uploads to disk (can switch to S3 in prod).
-- **Vite** – fast dev server and build pipeline for simple multi-page TS apps.
-- **Bootstrap** – instant, responsive UI without heavy frameworks.
+- **Windows EPERM rename (Prisma DLL)**:  
+  Caused by locked files from running node processes.  
+  Use `npm run cleanBuild:all` or stop all `node/vite/nodemon` processes and retry.
 
----
+- **No emails in dev**:  
+  MailDev should be running (started by the backend dev script). Check http://localhost:1080/.
 
-## Common pitfalls & tips
-
-- **“Unable to open database file”** → verify `DATABASE_URL="file:./dev.db"` and run the server from `backend/`, not the repo root. Then `npx prisma migrate dev`.
-- **Duplicate email returns 500 HTML** → this code already maps Prisma `P2002` to a JSON `400` (“user already exists”).
-- **`req.user` type missing** → see `backend/src/types/express.d.ts` and `tsconfig.json` `typeRoots`/`types`.
-- **CORS** in dev is wide-open; restrict in production.
-- **Roles** – submission route currently enforces auth; you may additionally require `STUDENT` role via
-  `authorizeRole(['STUDENT'])` if desired.
+- **Empty database**:  
+  Re-run `npm run cleanBuild:all`, or:
+  ```bash
+  cd backend
+  npx prisma db push
+  npx prisma db seed
+  ```
 
 ---
 
-## Next steps (suggested)
+## 11) Production Notes
 
-- Add `GET /api/auth/me` to return `{ id, role, email }` of the current user.
-- Add `GET /api/submissions/my-submissions` so students can see status history.
-- Create additional frontend pages (`dashboard.html`, `submissions.html`, `review.html`) and TS scripts.
-- Fix `vite.config.ts` inputs as noted above.
-- Add request validation (e.g., zod) and a global error handler middleware.
-- Consider moving file storage to S3 (or equivalent) for production deployments.
-- Deploy: separate pipelines for `backend` and `frontend` (e.g., Render + Netlify).
+- Replace SQLite with Postgres/MySQL and run `prisma migrate deploy`.
+- Store uploads in an object store (e.g., S3/Cloud Storage) rather than local disk.
+- Serve the built frontend via a static host (e.g., Nginx, Vercel, Netlify).
+- Harden CORS, JWT handling, logging, and error reporting.
 
 ---
-
-## Scripts (as of now)
-
-**backend/package.json**
-
-```json
-{
-  "test": "echo \"Error: no test specified\" && exit 1",
-  "dev": "nodemon --exec ts-node --files ./src/index.ts",
-  "build": "tsc --project tsconfig.json",
-  "clean": "rimraf dist"
-}
-```
-
-**frontend/package.json**
-
-```json
-{
-  "dev": "vite",
-  "build": "tsc && vite build",
-  "preview": "vite preview"
-}
-```
