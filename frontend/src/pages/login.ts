@@ -1,4 +1,3 @@
-// frontend/src/pages/login.ts
 import { API_BASE, authHeaders, getToken, flash } from "../main";
 
 const form = document.getElementById("loginForm") as HTMLFormElement;
@@ -17,9 +16,7 @@ const msg = document.getElementById("message")!;
     } else if (res.status === 401) {
       localStorage.removeItem("token"); // invalid/expired
     }
-  } catch {
-    // ignore network errors; allow page
-  }
+  } catch {}
 })();
 
 form.addEventListener("submit", async (e) => {

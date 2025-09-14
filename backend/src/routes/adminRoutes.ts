@@ -1,4 +1,3 @@
-// backend/src/routes/adminRoutes.ts
 import { Router } from "express";
 import { authenticate } from "../middleware/authMiddleware";
 import { authorizeRole } from "../middleware/roleMiddleware";

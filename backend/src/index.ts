@@ -1,4 +1,3 @@
-// backend/src/index.ts
 import express, { Application } from "express";
 import cors from "cors";
 import dotenv from "dotenv";
@@ -9,6 +8,7 @@ import reviewRoutes from "./routes/reviewRoutes";
 import dashboardRoutes from "./routes/dashboardRoutes";
 import adminRoutes from "./routes/adminRoutes";
 import { apiRoutes } from "./routes/apiRoutes";
+import userRoutes from "./routes/userRoutes";
 
 dotenv.config();
 
@@ -23,6 +23,7 @@ app.use("/api/submissions", submissionRoutes);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/user", userRoutes);
 
 // HTML list of all endpoints at /api
 apiRoutes(app);

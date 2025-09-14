@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>Loading…</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    html,
+    body {
+      height: 100%
+    }
+
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: system-ui, Segoe UI, Arial, sans-serif
+    }
+  </style>
+</head>
+
+<body>
+  <div>Checking session…</div>
+
+  <script type="module">
+    // Keep this inline to avoid any CSP/asset race
+    const API_BASE = import.meta.env?.VITE_API_BASE || '';
+    const token = localStorage.getItem('token');
+
+    async function go() {
+      // No token? go to login
+      if (!token) {
+        location.replace('/login.html');
+        return;
+      }
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/me`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          location.replace('/dashboard.html');
+        } else {
+          localStorage.removeItem('token');
+          location.replace('/login.html');
+        }
+      } catch {
+        // Network issue: treat as logged-out so user can try logging in
+        localStorage.removeItem('token');
+        location.replace('/login.html');
+      }
+    }
+    go();
+  </script>
+</body>
+
+</html>

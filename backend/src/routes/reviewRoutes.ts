@@ -1,13 +1,16 @@
-import { Router } from 'express';
-import { authenticate } from '../middleware/authMiddleware';
-import { authorizeRole } from '../middleware/roleMiddleware';
-import { reviewSubmission, getPendingSubmissions } from '../controllers/reviewController';
+import { Router } from "express";
+import { authenticate } from "../middleware/authMiddleware";
+import { authorizeRole } from "../middleware/roleMiddleware";
+import {
+  getPendingSubmissions,
+  reviewSubmission,
+} from "../controllers/reviewController";
 
-const router: Router = Router();
+const router = Router();
 
-router.use(authenticate);
+router.use(authenticate, authorizeRole(["REVIEWER", "ADMIN"]));
 
-router.get('/pending', authorizeRole(['REVIEWER', 'ADMIN']), getPendingSubmissions);
-router.post('/:id/review', authorizeRole(['REVIEWER', 'ADMIN']), reviewSubmission);
+router.get("/pending", getPendingSubmissions);
+router.post("/:id", reviewSubmission);
 
 export default router;

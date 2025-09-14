@@ -1,6 +1,7 @@
-// backend/src/types/express.d.ts
-declare namespace Express {
-  export interface Request {
+export {};
+
+declare module "express-serve-static-core" {
+  interface Request {
     user?: {
       id: number;
       role: string;

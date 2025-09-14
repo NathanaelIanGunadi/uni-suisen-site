@@ -1,4 +1,3 @@
-// frontend/src/pages/application.ts
 import { API_BASE, authHeaders, getToken, flash } from "../main";
 
 type Status = "PENDING" | "APPROVED" | "REJECTED";

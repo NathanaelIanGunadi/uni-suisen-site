@@ -2,8 +2,15 @@
   "name": "uni-suisen-site-monorepo",
   "private": true,
   "scripts": {
+    "cleanBuild:all": "node scripts/cleanBuildAll.js",
     "rebuild": "node scripts/rebuild.ts",
     "rebuild:clean": "node scripts/rebuild.ts --clean-locks",
-    "rebuild:resetdb": "node scripts/rebuild.ts --reset-db"
+    "rebuild:resetdb": "node scripts/rebuild.ts --reset-db",
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "dev": "concurrently -n BACKEND,FRONTEND -c auto \"npm:dev:backend\" \"npm:dev:frontend\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
   }
 }

@@ -1,4 +1,3 @@
-// backend/src/controllers/adminController.ts
 import { Request, Response } from "express";
 import { PrismaClient, Role, Prisma } from "@prisma/client";
 import bcrypt from "bcrypt";
@@ -6,16 +5,20 @@ import crypto from "crypto";
 
 const prisma = new PrismaClient();
 
-/**
- * List all users (id, email, role)
- */
+/** List all users */
 export const listUsers = async (
   _req: Request,
   res: Response
 ): Promise<void> => {
   try {
     const users = await prisma.user.findMany({
-      select: { id: true, email: true, role: true },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        firstName: true,
+        lastName: true,
+      },
       orderBy: { id: "asc" },
     });
     res.json(users);
@@ -25,10 +28,7 @@ export const listUsers = async (
   }
 };
 
-/**
- * Update a user's role (ADMIN only)
- * body: { role: 'ADMIN' | 'REVIEWER' | 'STUDENT' }
- */
+/** Update a user's role */
 export const updateUserRole = async (
   req: Request,
   res: Response
@@ -47,7 +47,13 @@ export const updateUserRole = async (
     const user = await prisma.user.update({
       where: { id: userId },
       data: { role },
-      select: { id: true, email: true, role: true },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        firstName: true,
+        lastName: true,
+      },
     });
     res.json(user);
   } catch (err) {
@@ -56,9 +62,7 @@ export const updateUserRole = async (
   }
 };
 
-/**
- * Generate a strong temporary password (no ambiguous chars).
- */
+/** Temp password generator */
 const generateTempPassword = (length = 12): string => {
   const charset =
     "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%^&*";
@@ -68,12 +72,7 @@ const generateTempPassword = (length = 12): string => {
   return out;
 };
 
-/**
- * Reset a user's password (ADMIN only)
- * - Generates a temporary password
- * - Hashes & saves it
- * - Returns the temp password for the admin to share securely
- */
+/** Reset a user's password (returns temp password for MVP) */
 export const resetUserPassword = async (
   req: Request,
   res: Response
@@ -98,12 +97,17 @@ export const resetUserPassword = async (
 
 /**
  * Add a user (ADMIN only)
- * body: { email: string, role?: 'ADMIN' | 'REVIEWER' | 'STUDENT' }
- * - Generates a temp password, hashes it, creates user
- * - Returns user data + tempPassword (for this response only)
+ * body: { email: string, role?: Role, firstName?: string, lastName?: string }
+ * - Generates a temp password, saves hash
+ * - Returns { id, email, role, firstName, lastName, tempPassword }
  */
 export const addUser = async (req: Request, res: Response): Promise<void> => {
-  const { email, role } = req.body as { email?: string; role?: Role };
+  const { email, role, firstName, lastName } = req.body as {
+    email?: string;
+    role?: Role;
+    firstName?: string;
+    lastName?: string;
+  };
 
   if (!email) {
     res.status(400).json({ error: "Email is required." });
@@ -124,8 +128,16 @@ export const addUser = async (req: Request, res: Response): Promise<void> => {
         email,
         password: hashed,
         role: roleToUse,
+        firstName: firstName || null,
+        lastName: lastName || null,
       },
-      select: { id: true, email: true, role: true },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        firstName: true,
+        lastName: true,
+      },
     });
 
     res.status(201).json({ ...user, tempPassword: temp });
@@ -144,25 +156,18 @@ export const addUser = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
-/**
- * Delete a user (ADMIN only)
- * - Also deletes their submissions and related reviews to satisfy FK constraints
- *   (adjust if you configure ON DELETE CASCADE later).
- */
+/** Delete a user (and related data) */
 export const deleteUser = async (
   req: Request,
   res: Response
 ): Promise<void> => {
   const userId = Number(req.params.id);
-
-  // prevent accidental self-deletion
   if (req.user?.id === userId) {
     res.status(400).json({ error: "You cannot delete your own account." });
     return;
   }
 
   try {
-    // Find this user's submissions
     const subs = await prisma.submission.findMany({
       where: { studentId: userId },
       select: { id: true },
@@ -170,15 +175,11 @@ export const deleteUser = async (
     const subIds = subs.map((s) => s.id);
 
     await prisma.$transaction([
-      // delete reviews made by this user
       prisma.review.deleteMany({ where: { reviewerId: userId } }),
-      // delete reviews on their submissions
       prisma.review.deleteMany({
         where: { submissionId: { in: subIds.length ? subIds : [-1] } },
       }),
-      // delete their submissions
       prisma.submission.deleteMany({ where: { studentId: userId } }),
-      // finally delete the user
       prisma.user.delete({ where: { id: userId } }),
     ]);
 

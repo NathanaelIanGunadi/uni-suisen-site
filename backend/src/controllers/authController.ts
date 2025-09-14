@@ -1,20 +1,29 @@
 import { Request, Response } from "express";
-import { PrismaClient, Role, Prisma } from "@prisma/client";
+import { PrismaClient, Prisma } from "@prisma/client";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+
+type Role = "STUDENT" | "REVIEWER" | "ADMIN";
 
 const prisma = new PrismaClient();
 
 /**
  * POST /api/auth/register
- * body: { email, password }
- * - Self-registration always creates a STUDENT user (ignores any client-sent role)
+ * body: { email, password, firstName, lastName }
+ * - Self-registration always creates a STUDENT
  */
 export const register = async (req: Request, res: Response): Promise<void> => {
-  const { email, password } = req.body;
+  const { email, password, firstName, lastName } = req.body as {
+    email?: string;
+    password?: string;
+    firstName?: string;
+    lastName?: string;
+  };
 
-  if (!email || !password) {
-    res.status(400).json({ error: "Email and password are required." });
+  if (!email || !password || !firstName || !lastName) {
+    res.status(400).json({
+      error: "Email, password, first name, and last name are required.",
+    });
     return;
   }
 
@@ -25,14 +34,21 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       data: {
         email,
         password: hashedPassword,
-        role: "STUDENT" as Role, // 🔒 force STUDENT on self-register
+        role: "STUDENT", // string field in your schema
+        firstName,
+        lastName,
       },
-      select: { id: true, email: true, role: true },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        firstName: true,
+        lastName: true,
+      },
     });
 
     res.status(201).json(user);
-  } catch (err) {
-    // Prisma unique constraint on email => P2002
+  } catch (err: unknown) {
     if (
       err instanceof Prisma.PrismaClientKnownRequestError &&
       err.code === "P2002" &&
@@ -53,7 +69,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
  * returns: { token }
  */
 export const login = async (req: Request, res: Response): Promise<void> => {
-  const { email, password } = req.body;
+  const { email, password } = req.body as { email?: string; password?: string };
 
   if (!email || !password) {
     res.status(400).json({ error: "Email and password are required." });
@@ -73,11 +89,16 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const token = jwt.sign(
-      { id: user.id, role: user.role },
-      process.env.JWT_SECRET as string,
-      { expiresIn: "8h" }
-    );
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+      console.error("JWT_SECRET missing");
+      res.status(500).json({ error: "Server misconfigured." });
+      return;
+    }
+
+    const token = jwt.sign({ id: user.id, role: user.role as Role }, secret, {
+      expiresIn: "8h",
+    });
 
     res.json({ token });
   } catch (err) {
@@ -88,8 +109,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
 /**
  * GET /api/auth/me
- * header: Authorization: Bearer <token>
- * returns: { id, email, role }
+ * returns: { id, email, role, firstName?, lastName? }
  */
 export const me = async (req: Request, res: Response): Promise<void> => {
   if (!req.user) {
@@ -100,7 +120,13 @@ export const me = async (req: Request, res: Response): Promise<void> => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.user.id },
-      select: { id: true, email: true, role: true },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        firstName: true,
+        lastName: true,
+      },
     });
 
     if (!user) {

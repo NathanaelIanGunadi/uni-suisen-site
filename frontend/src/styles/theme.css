@@ -1,0 +1,94 @@
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+}
+
+/* ---- Theme tokens ---- */
+:root {
+  /* Primary (buttons, accents) */
+  --bs-primary: #57998D;
+  --bs-primary-rgb: 87, 153, 141;
+
+  /* Links (hyperlinks) */
+  --bs-link-color: #24907e;
+  --bs-link-hover-color: #1f7c6d;
+  /* a touch darker */
+}
+
+/* ---- Buttons ---- */
+.btn-primary {
+  background-color: #57998D;
+  border-color: #57998D;
+}
+
+.btn-primary:hover,
+.btn-primary:focus {
+  background-color: #4a857b;
+  border-color: #4a857b;
+}
+
+.btn-outline-primary {
+  color: #57998D;
+  border-color: #57998D;
+}
+
+.btn-outline-primary:hover,
+.btn-outline-primary:focus {
+  background-color: #57998D;
+  border-color: #57998D;
+  color: #fff;
+}
+
+/* Form controls focus ring tinted to primary */
+.form-control:focus,
+.form-select:focus {
+  border-color: rgba(87, 153, 141, .6);
+  box-shadow: 0 0 0 .25rem rgba(87, 153, 141, .25);
+}
+
+/* ---- Hyperlinks ---- */
+/* Style normal hyperlinks; avoid anchors styled as buttons */
+a:not(.btn) {
+  color: #24907e;
+}
+
+a:not(.btn):hover,
+a:not(.btn):focus {
+  color: #1f7c6d;
+  text-decoration: underline;
+}
+
+a:not(.btn):visited {
+  color: #24907e;
+}
+
+/* Also align Bootstrap's helper class */
+.link-primary {
+  color: #24907e !important;
+}
+
+.link-primary:hover,
+.link-primary:focus {
+  color: #1f7c6d !important;
+}
+
+/* ---- Top bar ---- */
+.topbar {
+  background: #57998D;
+  color: #fff;
+  position: sticky;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1030;
+}
+
+.topbar a {
+  color: #fff !important;
+  text-decoration: none;
+}

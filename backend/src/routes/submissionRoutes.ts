@@ -1,27 +1,40 @@
-// backend/src/routes/submissionRoutes.ts
 import { Router } from "express";
 import {
   createSubmission,
   getStudentSubmissions,
+  getAllSubmissionsForStaff,
+  getSubmissionById,
 } from "../controllers/submissionController";
 import { authenticate } from "../middleware/authMiddleware";
 import { authorizeRole } from "../middleware/roleMiddleware";
 import { upload } from "../utils/fileUpload";
 
 const router = Router();
-
-// All routes below require auth
 router.use(authenticate);
 
-// Create a submission (Students and Admins only)
+// Create (Student/Admin)
 router.post(
   "/",
   authorizeRole(["STUDENT", "ADMIN"]),
-  upload.single("document"), // form field name must be 'document'
+  upload.single("document"),
   createSubmission
 );
 
-// Get the authenticated user's submissions (students/admins see their own)
-router.get("/my-submissions", getStudentSubmissions);
+// My submissions (Student/Admin)
+router.get(
+  "/my-submissions",
+  authorizeRole(["STUDENT", "ADMIN"]),
+  getStudentSubmissions
+);
+
+// Staff: all submissions (Reviewer/Admin)
+router.get(
+  "/all",
+  authorizeRole(["REVIEWER", "ADMIN"]),
+  getAllSubmissionsForStaff
+);
+
+// Mixed access: staff = any, student = only own (controller checks)
+router.get("/:id", getSubmissionById);
 
 export default router;

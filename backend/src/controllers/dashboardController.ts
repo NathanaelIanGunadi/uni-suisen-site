@@ -4,10 +4,6 @@ import { PrismaClient, Prisma } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-/**
- * A simple summary endpoint. We keep it for parity, but the new UI now
- * focuses on role-based sections. This still returns minimal info.
- */
 export const getDashboardSummary = async (
   req: Request,
   res: Response
@@ -28,7 +24,6 @@ export const getDashboardSummary = async (
       return;
     }
 
-    // Minimal payload (stats removed from here for simplicity in new UI)
     res.json({ user });
   } catch (err) {
     console.error("Dashboard summary error:", err);

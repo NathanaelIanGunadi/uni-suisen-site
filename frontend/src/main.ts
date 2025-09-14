@@ -9,7 +9,7 @@ export const authHeaders = (): Record<string, string> => {
 
 export const flash = (
   el: HTMLElement,
-  type: "success" | "danger",
+  type: "success" | "danger" | "warning",
   text: string
 ): void => {
   el.innerHTML = `<div class="alert alert-${type}">${text}</div>`;
