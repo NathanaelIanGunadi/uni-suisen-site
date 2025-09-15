@@ -1,102 +1,103 @@
 import { API_BASE, authHeaders, getToken, flash } from "../main";
 import {
   type SubmissionRow,
-  renderStaffRows,
-  sortStaff,
+  type Role,
   type StaffSortKey,
   type SortDir,
+  renderStaffRows,
+  sortStaff,
+  wireSortable,
+  filterRows,
 } from "../components/submissionTables";
-
-type Role = "STUDENT" | "REVIEWER" | "ADMIN";
 
 interface Me {
   id: number;
+  email: string;
   role: Role;
 }
 
-const msg = document.getElementById("message")!;
-const logoutBtn = document.getElementById("logout") as HTMLButtonElement;
-const searchInput = document.getElementById("search") as HTMLInputElement;
-const bodyEl = document.getElementById("subs-body") as HTMLElement;
+const msg = document.getElementById("message") as HTMLElement | null;
+const logoutBtn = document.getElementById("logout") as HTMLButtonElement | null;
+const tableBody = document.getElementById("subs-body") as HTMLElement;
+const search = document.getElementById("search") as HTMLInputElement;
 
+// Guard
 if (!getToken()) window.location.href = "/login.html";
-
-logoutBtn.addEventListener("click", () => {
+logoutBtn?.addEventListener("click", () => {
   localStorage.removeItem("token");
   window.location.href = "/login.html";
 });
 
+let me: Me | null = null;
 let rows: SubmissionRow[] = [];
-let index: string[] = [];
+let filtered: SubmissionRow[] = [];
 
 let sortKey: StaffSortKey = "createdAt";
 let sortDir: SortDir = "desc";
 
-const indexText = (s: SubmissionRow): string => {
-  const student =
-    [s.student?.firstName, s.student?.lastName].filter(Boolean).join(" ") ||
-    s.student?.email ||
-    "";
-  const latest = s.reviews?.[0];
-  const reviewBits = latest ? [latest.comments || ""].join(" ") : "";
-  return [s.id, s.title, s.status, s.filename, s.createdAt, student, reviewBits]
-    .join(" ")
-    .toLowerCase();
-};
-
-async function guardRole(): Promise<void> {
+async function loadMe(): Promise<Me | null> {
   const res = await fetch(`${API_BASE}/api/auth/me`, {
     headers: authHeaders(),
   });
-  const me: Me = await res.json();
-  if (!res.ok || (me.role !== "ADMIN" && me.role !== "REVIEWER")) {
-    window.location.href = "/dashboard.html";
+  const data = await res.json();
+  if (!res.ok) {
+    msg && flash(msg, "danger", data.error || "Unauthorized");
+    if (res.status === 401) window.location.href = "/login.html";
+    return null;
   }
+  return data as Me;
 }
 
-function render(list: SubmissionRow[]): void {
-  const sorted = sortStaff(list, sortKey, sortDir);
-  renderStaffRows(bodyEl, sorted, API_BASE);
-}
-
-async function load(): Promise<void> {
-  try {
-    await guardRole();
-    const res = await fetch(`${API_BASE}/api/submissions/all`, {
-      headers: authHeaders(),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      flash(msg, "danger", data.error || "Failed to load submissions");
-      return;
-    }
-    rows = data as SubmissionRow[];
-    index = rows.map(indexText);
-    render(rows);
-  } catch (err: any) {
-    flash(msg, "danger", err?.message || "Network error");
-  }
-}
-
-searchInput.addEventListener("input", () => {
-  const q = searchInput.value.trim().toLowerCase();
-  const list = q ? rows.filter((_s, i) => index[i].includes(q)) : rows;
-  render(list);
-});
-
-document.querySelectorAll<HTMLTableCellElement>("th.sortable").forEach((th) => {
-  th.addEventListener("click", () => {
-    const key = th.dataset.sort as StaffSortKey | undefined;
-    if (!key) return;
-    if (sortKey === key) sortDir = sortDir === "asc" ? "desc" : "asc";
-    else {
-      sortKey = key;
-      sortDir = key === "createdAt" ? "desc" : "asc";
-    }
-    const q = searchInput.value.trim().toLowerCase();
-    const list = q ? rows.filter((_s, i) => index[i].includes(q)) : rows;
-    render(list);
+async function loadAll(): Promise<SubmissionRow[]> {
+  const res = await fetch(`${API_BASE}/api/submissions/all`, {
+    headers: authHeaders(),
   });
-});
+  const data = await res.json();
+  if (!res.ok) {
+    msg && flash(msg, "danger", data.error || "Failed to load submissions");
+    return [];
+  }
+  return data as SubmissionRow[];
+}
 
-load();
+function render(): void {
+  const sorted = sortStaff(filtered, sortKey, sortDir);
+  renderStaffRows(tableBody, sorted);
+}
+
+async function init(): Promise<void> {
+  me = await loadMe();
+  if (!me) return;
+
+  // Client-side role gate (server already enforces)
+  if (me.role !== "REVIEWER" && me.role !== "ADMIN") {
+    window.location.href = "/dashboard.html";
+    return;
+  }
+
+  rows = await loadAll();
+  filtered = rows;
+  render();
+
+  // Sort headers
+  wireSortable(document.body, (key) => {
+    const k = key as StaffSortKey;
+    if (sortKey === k) sortDir = sortDir === "asc" ? "desc" : "asc";
+    else {
+      sortKey = k;
+      sortDir = k === "createdAt" ? "desc" : "asc";
+    }
+    render();
+  });
+
+  // Search
+  search?.addEventListener("input", () => {
+    filtered = filterRows(rows, search.value);
+    render();
+  });
+}
+
+init().catch((err) => {
+  console.error(err);
+  msg && flash(msg, "danger", "Failed to initialize submissions page");
+});

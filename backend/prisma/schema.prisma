@@ -24,15 +24,29 @@ model User {
 }
 
 model Submission {
-  id          Int      @id @default(autoincrement())
+  id          Int              @id @default(autoincrement())
   title       String
-  filename    String
-  status      Status   @default(PENDING)
+  // DEPRECATED: keep for backward compatibility (old rows)
+  filename    String?          // <-- kept optional; new uploads use files[]
+  status      Status           @default(PENDING)
   studentId   Int
   reviews     Review[]
-  createdAt   DateTime @default(now())
+  createdAt   DateTime         @default(now())
 
-  student     User     @relation(fields: [studentId], references: [id])
+  student     User             @relation(fields: [studentId], references: [id])
+  files       SubmissionFile[] // <-- new: attachments
+}
+
+model SubmissionFile {
+  id            Int         @id @default(autoincrement())
+  submissionId  Int
+  filename      String      // stored filename on disk
+  originalName  String      // original uploaded name
+  createdAt     DateTime    @default(now())
+
+  submission    Submission  @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  @@index([submissionId])
 }
 
 model Review {

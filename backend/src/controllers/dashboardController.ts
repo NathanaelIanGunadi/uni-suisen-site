@@ -1,4 +1,3 @@
-// backend/src/controllers/dashboardController.ts
 import { Request, Response } from "express";
 import { PrismaClient, Prisma } from "@prisma/client";
 
@@ -33,6 +32,7 @@ export const getDashboardSummary = async (
 
 /**
  * For REVIEWER/ADMIN: return ALL submissions (with student, latest first).
+ * - Adds files[] so the dashboard’s staff table can show attachments.
  */
 export const getAllSubmissionsForModeration = async (
   _req: Request,
@@ -41,7 +41,10 @@ export const getAllSubmissionsForModeration = async (
   try {
     const submissions = await prisma.submission.findMany({
       include: {
-        student: { select: { id: true, email: true } },
+        student: {
+          select: { id: true, email: true, firstName: true, lastName: true },
+        },
+        files: true,
         reviews: {
           select: {
             id: true,

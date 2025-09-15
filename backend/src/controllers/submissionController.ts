@@ -6,13 +6,24 @@ const prisma = new PrismaClient();
 
 /**
  * Students/Admins create a submission (enforces one PENDING at a time).
+ * - Supports single file field "document" (legacy) OR multiple files field "documents".
+ * - Keeps legacy submission.filename as the first uploaded file for compatibility.
+ * - Stores all uploaded files in SubmissionFile records (requires SubmissionFile model in Prisma).
  */
 export const createSubmission = async (
   req: Request,
   res: Response
 ): Promise<void> => {
   const { title } = req.body;
-  const file = req.file;
+
+  // Support both single and multi-file upload shapes:
+  const singleFile = req.file as Express.Multer.File | undefined;
+  const multiFiles = (req.files as Express.Multer.File[]) || [];
+  const allFiles: Express.Multer.File[] = singleFile
+    ? [singleFile]
+    : Array.isArray(multiFiles)
+    ? multiFiles
+    : [];
 
   if (!req.user) {
     res.status(401).json({ error: "Unauthorized" });
@@ -22,8 +33,8 @@ export const createSubmission = async (
     res.status(400).json({ error: "Title is required." });
     return;
   }
-  if (!file) {
-    res.status(400).json({ error: "Please attach a document." });
+  if (!allFiles.length) {
+    res.status(400).json({ error: "Please attach at least one document." });
     return;
   }
 
@@ -37,9 +48,34 @@ export const createSubmission = async (
     return;
   }
 
+  // Create submission (keep legacy filename = first file)
   const submission = await prisma.submission.create({
-    data: { title, filename: file.filename, studentId: req.user.id },
+    data: {
+      title,
+      filename: allFiles[0].filename, // legacy compatibility
+      studentId: req.user.id,
+    },
     include: { student: true },
+  });
+
+  // Create file records for all uploaded files (new)
+  try {
+    await prisma.submissionFile.createMany({
+      data: allFiles.map((f) => ({
+        submissionId: submission.id,
+        filename: f.filename,
+        originalName: f.originalname,
+      })),
+    });
+  } catch (e) {
+    // If file record creation fails, you may wish to log but not fail the submission itself
+    console.error("[createSubmission] createMany(submissionFile) error:", e);
+  }
+
+  // Fetch with files to return a richer response (keeps your previous shape + adds files[])
+  const full = await prisma.submission.findUnique({
+    where: { id: submission.id },
+    include: { student: true, files: true },
   });
 
   // Notify opted-in reviewers/admins (non-blocking)
@@ -53,22 +89,32 @@ export const createSubmission = async (
         select: { email: true },
       });
 
-      if (recipients.length) {
-        const subject = `[New Submission] ${submission.title}`;
+      if (recipients.length && full) {
+        const subject = `[New Submission] ${full.title}`;
+        const fileListHtml =
+          full.files && full.files.length
+            ? `<ul>${full.files
+                .map(
+                  (f) =>
+                    `<li>${escapeHtml(
+                      f.originalName || f.filename
+                    )} (${escapeHtml(f.filename)})</li>`
+                )
+                .join("")}</ul>`
+            : `<p>(no files)</p>`;
         const html = `
           <p>A new submission was created.</p>
           <ul>
-            <li><b>Title:</b> ${escapeHtml(submission.title)}</li>
-            <li><b>Student:</b> ${escapeHtml(
-              submission.student?.email || ""
-            )}</li>
-            <li><b>Filename:</b> ${escapeHtml(submission.filename)}</li>
+            <li><b>Title:</b> ${escapeHtml(full.title)}</li>
+            <li><b>Student:</b> ${escapeHtml(full.student?.email || "")}</li>
             <li><b>Created:</b> ${new Date(
-              submission.createdAt
+              full.createdAt
             ).toLocaleString()}</li>
           </ul>
+          <p><b>Files:</b></p>
+          ${fileListHtml}
           <p><a href="${process.env.APP_BASE_URL || ""}/submission.html?id=${
-          submission.id
+          full.id
         }">Open submission</a></p>
         `;
         await Promise.allSettled(
@@ -82,11 +128,12 @@ export const createSubmission = async (
     }
   })();
 
-  res.status(201).json(submission);
+  res.status(201).json(full ?? submission);
 };
 
 /**
  * Current user's submissions (student/admin sees their own history).
+ * - Adds files[] to each submission; keeps legacy filename as-is.
  */
 export const getStudentSubmissions = async (
   req: Request,
@@ -98,7 +145,7 @@ export const getStudentSubmissions = async (
   }
   const submissions = await prisma.submission.findMany({
     where: { studentId: req.user.id },
-    include: { reviews: true },
+    include: { reviews: true, files: true },
     orderBy: { createdAt: "desc" },
   });
   res.json(submissions);
@@ -106,6 +153,7 @@ export const getStudentSubmissions = async (
 
 /**
  * Staff view: all submissions (admins/reviewers).
+ * - Adds files[] so staff can see all attachments.
  */
 export const getAllSubmissionsForStaff = async (
   _req: Request,
@@ -116,6 +164,7 @@ export const getAllSubmissionsForStaff = async (
       student: {
         select: { id: true, email: true, firstName: true, lastName: true },
       },
+      files: true,
       reviews: {
         orderBy: { reviewedAt: "desc" },
         take: 1,
@@ -137,6 +186,7 @@ export const getAllSubmissionsForStaff = async (
 
 /**
  * Mixed access: reviewers/admins can view any; students can view only their own.
+ * - Adds files[] to details response.
  */
 export const getSubmissionById = async (
   req: Request,
@@ -154,6 +204,7 @@ export const getSubmissionById = async (
       student: {
         select: { id: true, email: true, firstName: true, lastName: true },
       },
+      files: true,
       reviews: {
         orderBy: { reviewedAt: "desc" },
         select: {

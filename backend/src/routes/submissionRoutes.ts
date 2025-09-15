@@ -12,11 +12,13 @@ import { upload } from "../utils/fileUpload";
 const router = Router();
 router.use(authenticate);
 
-// Create (Student/Admin)
+/**
+ * Create (Student/Admin)
+ */
 router.post(
   "/",
   authorizeRole(["STUDENT", "ADMIN"]),
-  upload.single("document"),
+  upload.any(), // accept "document" and/or "documents"[]
   createSubmission
 );
 
